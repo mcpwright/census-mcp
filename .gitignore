@@ -17,3 +17,8 @@ __pycache__/
 # build artifacts
 dist/
 build/
+
+# Local env / secrets — never commit (the Census API key lives here for dev)
+.env
+.env.*
+!.env.example
