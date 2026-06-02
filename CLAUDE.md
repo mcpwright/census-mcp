@@ -21,10 +21,11 @@ the suite meets the **same engineering bar**, set by the reference server **edga
   annotated `readOnlyHint=True`.
 - **PR per change, CI-gated.** Standard flow:
   **feature branch → code → code-review subagent → fold in findings → PR → CI green → squash-merge.**
-  - *Code-review subagent:* before opening the PR, spawn a subagent to adversarially review the
-    diff (`git diff main...HEAD`) — correctness bugs first, then consistency / simplification /
-    test gaps, returning severity-tagged findings (BLOCKER / SHOULD-FIX / NICE-TO-HAVE). Address
-    BLOCKER/SHOULD-FIX (and add a regression test for any real bug) before the PR.
+  - *Code-review subagent:* before opening the PR, review the diff (`git diff main...HEAD`) with
+    the **`code-reviewer`** subagent (`.claude/agents/code-reviewer.md`) — or just run
+    **`/review-pr`**. It runs in a **fresh context with no memory of the coding session** and
+    returns severity-tagged findings (**Blocker / High / Medium / Low**). Address Blocker/High
+    (and add a regression test for any real bug) before the PR.
   - *Merge:* the `Code Quality & Tests` check green and branch up to date → squash-merge with a
     `(#N)` suffix. `main` is branch-protected; **no direct pushes**.
   - *Commits:* imperative subject + a short body, ending with the dual trailer
