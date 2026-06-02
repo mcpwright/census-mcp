@@ -19,6 +19,7 @@ Census API key is required for the one-time download.
 |---|---|
 | `lookup_zip(zip_code)` | Confirm a ZIP maps to a Census ZCTA; returns name, total population, and the ACS vintage. |
 | `get_income(zip_code)` | Median household income, per-capita income, total households, and the % of households earning $200k+. |
+| `get_demographics(zip_code)` | Total population and median age. |
 
 ZIP ≈ ZCTA (ZIP Code Tabulation Area): they mostly coincide, but ~2% of ZIPs (PO-box-only /
 non-residential) have no ZCTA and will return an error. All figures are ACS 5-year *estimates*.
@@ -77,7 +78,7 @@ uv run mcp dev src/census_mcp/server.py              # poke the tools in the MCP
 
 - [x] `lookup_zip` — validate a ZIP, name + population
 - [x] `get_income` — income measures + % $200k+
-- [ ] `get_demographics` — median age + age brackets
+- [x] `get_demographics` — population + median age _(age brackets still to come)_
 - [ ] `get_housing` — median home value, rent, % owner-occupied
 - [ ] `get_education` — % bachelor's+, % graduate
 - [ ] `compare_zips` — one metric across several ZIPs, ranked
