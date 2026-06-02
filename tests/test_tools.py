@@ -22,6 +22,15 @@ async def test_get_income(ctx) -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_demographics(ctx) -> None:
+    demo = await server.get_demographics("90069", ctx)
+    assert demo.zcta == "90069"
+    assert demo.population == 22000
+    assert demo.median_age == 39.5
+    assert demo.vintage == 2023
+
+
+@pytest.mark.asyncio
 async def test_zip_plus_four_is_accepted(ctx) -> None:
     info = await server.lookup_zip("90069-1234", ctx)
     assert info.zcta == "90069"

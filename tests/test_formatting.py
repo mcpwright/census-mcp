@@ -1,4 +1,4 @@
-from census_mcp.formatting import pct, to_income, to_zip_info
+from census_mcp.formatting import pct, to_demographics, to_income, to_zip_info
 
 
 def test_pct() -> None:
@@ -14,6 +14,25 @@ def test_to_zip_info_handles_missing() -> None:
     assert z.zcta == "00601"
     assert z.population is None
     assert z.vintage == 2023
+
+
+def test_to_demographics() -> None:
+    rec: dict[str, object] = {
+        "zcta": "90069",
+        "name": "ZCTA5 90069",
+        "population": 22000,
+        "median_age": 39.5,
+    }
+    d = to_demographics(rec, 2023)
+    assert d.population == 22000
+    assert d.median_age == 39.5
+    assert d.vintage == 2023
+
+
+def test_to_demographics_handles_missing_age() -> None:
+    d = to_demographics({"zcta": "00601", "population": None, "median_age": None}, 2023)
+    assert d.population is None
+    assert d.median_age is None
 
 
 def test_to_income_computes_derived_pct() -> None:

@@ -23,6 +23,20 @@ class ZipInfo(BaseModel):
     vintage: int = Field(description="ACS 5-year data vintage (end year)")
 
 
+class Demographics(BaseModel):
+    """Population and age for a ZIP / ZCTA."""
+
+    zcta: str = Field(description="5-digit ZIP Code Tabulation Area")
+    name: str | None = Field(default=None, description="Census name for the area")
+    population: int | None = Field(
+        default=None, description="Total population (ACS 5-year estimate)"
+    )
+    median_age: float | None = Field(
+        default=None, description="Median age of the population, in years"
+    )
+    vintage: int = Field(description="ACS 5-year data vintage (end year)")
+
+
 class Income(BaseModel):
     """Income measures for a ZIP / ZCTA (all dollar amounts in USD)."""
 
