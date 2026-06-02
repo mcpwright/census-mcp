@@ -1,6 +1,11 @@
+import pytest
+
 from census_mcp.formatting import (
     _sum,
+    available_metrics,
+    metric_value,
     pct,
+    to_comparison,
     to_demographics,
     to_education,
     to_housing,
@@ -127,3 +132,33 @@ def test_to_income_none_when_share_unknown() -> None:
     }
     inc = to_income(rec, 2023)
     assert inc.households_200k_plus_pct is None
+
+
+def test_metric_value_direct_and_derived() -> None:
+    rec: dict[str, object] = {
+        "median_household_income": 105000,
+        "owner_occupied_units": 4000,
+        "occupied_units": 13800,
+    }
+    assert metric_value(rec, "median_household_income") == 105000.0
+    assert metric_value(rec, "owner_occupied_pct") == 29.0
+
+
+def test_metric_value_unknown_lists_choices() -> None:
+    with pytest.raises(ValueError, match="Unknown metric"):
+        metric_value({}, "not_a_metric")
+    assert "median_household_income" in available_metrics()
+
+
+def test_to_comparison_ranks_desc_missing_last() -> None:
+    rows: list[tuple[str, dict[str, object] | None]] = [
+        ("00601", {"zcta": "00601", "name": "B", "median_household_income": 15000}),
+        ("90069", {"zcta": "90069", "name": "A", "median_household_income": 105000}),
+        ("99999", None),  # not in the store → value None, ranked last
+    ]
+    comp = to_comparison(rows, "median_household_income", 2023)
+    assert [r.zcta for r in comp.results] == ["90069", "00601", "99999"]
+    assert comp.results[0].value == 105000.0
+    assert comp.results[-1].value is None
+    assert comp.metric == "median_household_income"
+    assert comp.vintage == 2023

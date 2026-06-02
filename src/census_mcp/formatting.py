@@ -7,9 +7,20 @@ scoring models that live elsewhere.
 
 from __future__ import annotations
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
-from .models import Demographics, Education, Housing, Income, ZipInfo
+from .models import (
+    Comparison,
+    Demographics,
+    Education,
+    Housing,
+    Income,
+    ZipInfo,
+    ZipMetric,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 # Degree-attainment components (ACS B15003) summed for the education metrics.
 _BACHELORS_PLUS = ("bachelors", "masters", "professional_degree", "doctorate")
@@ -24,6 +35,13 @@ def _int(rec: dict[str, object], key: str) -> int | None:
 
 def _float(rec: dict[str, object], key: str) -> float | None:
     v = rec.get(key)
+    if isinstance(v, bool) or not isinstance(v, int | float):
+        return None
+    return float(v)
+
+
+def _as_number(v: object) -> float | None:
+    """Coerce a stored value to float, or None if it isn't a real number."""
     if isinstance(v, bool) or not isinstance(v, int | float):
         return None
     return float(v)
@@ -115,3 +133,62 @@ def to_income(rec: dict[str, object], vintage: int) -> Income:
         ),
         vintage=vintage,
     )
+
+
+# Scalar metrics that can be ranked across ZIPs: name -> extractor(record).
+# Direct columns and the same derived percentages the single-ZIP tools expose.
+_METRICS: dict[str, Callable[[dict[str, object]], float | None]] = {
+    "population": lambda r: _as_number(r.get("population")),
+    "median_age": lambda r: _as_number(r.get("median_age")),
+    "median_household_income": lambda r: _as_number(r.get("median_household_income")),
+    "per_capita_income": lambda r: _as_number(r.get("per_capita_income")),
+    "households_200k_plus_pct": lambda r: pct(
+        r.get("households_200k_plus"), r.get("total_households")
+    ),
+    "median_home_value": lambda r: _as_number(r.get("median_home_value")),
+    "median_gross_rent": lambda r: _as_number(r.get("median_gross_rent")),
+    "owner_occupied_pct": lambda r: pct(
+        r.get("owner_occupied_units"), r.get("occupied_units")
+    ),
+    "bachelors_plus_pct": lambda r: pct(_sum(r, _BACHELORS_PLUS), r.get("pop_25_plus")),
+    "graduate_or_professional_pct": lambda r: pct(
+        _sum(r, _GRADUATE), r.get("pop_25_plus")
+    ),
+}
+
+
+def available_metrics() -> list[str]:
+    """The metric names accepted by ``compare_zips``."""
+    return list(_METRICS)
+
+
+def metric_value(rec: dict[str, object], metric: str) -> float | None:
+    """The value of ``metric`` for one record. Raises ValueError if unknown."""
+    try:
+        extractor = _METRICS[metric]
+    except KeyError:
+        raise ValueError(
+            f"Unknown metric {metric!r}. Choose one of: "
+            f"{', '.join(available_metrics())}."
+        ) from None
+    return extractor(rec)
+
+
+def to_comparison(
+    rows: list[tuple[str, dict[str, object] | None]], metric: str, vintage: int
+) -> Comparison:
+    """Build a ranked Comparison from (zcta, record-or-None) pairs.
+
+    Sorted by the metric value descending; ZIPs with no value (suppressed, or
+    not in the local store) are listed last.
+    """
+    results = [
+        ZipMetric(
+            zcta=zcta,
+            name=_str(rec, "name") if rec else None,
+            value=metric_value(rec, metric) if rec else None,
+        )
+        for zcta, rec in rows
+    ]
+    results.sort(key=lambda m: (m.value is None, -(m.value or 0.0)))
+    return Comparison(metric=metric, vintage=vintage, results=results)

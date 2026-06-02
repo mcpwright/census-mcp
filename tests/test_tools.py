@@ -49,6 +49,28 @@ async def test_get_education(ctx) -> None:
 
 
 @pytest.mark.asyncio
+async def test_compare_zips_ranks_desc(ctx) -> None:
+    comp = await server.compare_zips(
+        ["00601", "90069", "99999"], "median_household_income", ctx
+    )
+    # 90069 (105000) > 00601 (15000) > 99999 (not in store → None, last)
+    assert [r.zcta for r in comp.results] == ["90069", "00601", "99999"]
+    assert comp.results[-1].value is None
+
+
+@pytest.mark.asyncio
+async def test_compare_zips_unknown_metric_raises(ctx) -> None:
+    with pytest.raises(ValueError, match="Unknown metric"):
+        await server.compare_zips(["90069"], "nope", ctx)
+
+
+@pytest.mark.asyncio
+async def test_compare_zips_empty_raises(ctx) -> None:
+    with pytest.raises(ValueError, match="at least one ZIP"):
+        await server.compare_zips([], "population", ctx)
+
+
+@pytest.mark.asyncio
 async def test_zip_plus_four_is_accepted(ctx) -> None:
     info = await server.lookup_zip("90069-1234", ctx)
     assert info.zcta == "90069"
