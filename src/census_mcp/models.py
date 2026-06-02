@@ -97,6 +97,23 @@ class Education(BaseModel):
     vintage: int = Field(description="ACS 5-year data vintage (end year)")
 
 
+class AcsValue(BaseModel):
+    """The raw value of a single ACS variable for a ZIP / ZCTA."""
+
+    zcta: str = Field(description="5-digit ZIP Code Tabulation Area")
+    name: str | None = Field(default=None, description="Census name for the area")
+    variable: str = Field(description="ACS variable code, e.g. 'B19013_001E'")
+    column: str = Field(
+        description="Friendly store-column name, e.g. 'median_household_income'"
+    )
+    value: int | float | str | None = Field(
+        default=None,
+        description="The variable's value for this ZIP, or null if "
+        "missing/suppressed (a string only for the 'name' variable)",
+    )
+    vintage: int = Field(description="ACS 5-year data vintage (end year)")
+
+
 class ZipMetric(BaseModel):
     """One ZIP's value for a single metric, used in a ranked comparison."""
 

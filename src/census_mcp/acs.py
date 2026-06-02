@@ -30,6 +30,35 @@ ACS_FIELDS: list[tuple[str, str, str]] = [
 # The codes to request from the API (in ACS_FIELDS order).
 ACS_VARIABLES: list[str] = [code for code, _col, _kind in ACS_FIELDS]
 
+# Lookups between ACS variable codes and local store columns.
+_CODE_TO_COLUMN: dict[str, str] = {code: col for code, col, _kind in ACS_FIELDS}
+_COLUMN_TO_CODE: dict[str, str] = {col: code for code, col, _kind in ACS_FIELDS}
+
+
+def available_variables() -> list[str]:
+    """Friendly store-column names available for direct lookup."""
+    return [col for _code, col, _kind in ACS_FIELDS]
+
+
+def resolve_variable(variable: str) -> tuple[str, str]:
+    """Resolve an ACS code or store-column name to ``(code, column)``.
+
+    Accepts either the ACS variable code (e.g. ``B19013_001E``) or the friendly
+    store column (e.g. ``median_household_income``); both match
+    case-insensitively. Raises ``ValueError`` listing the options if unknown.
+    Limited to the variables held in the local store.
+    """
+    key = variable.strip()
+    if key.upper() in _CODE_TO_COLUMN:
+        return key.upper(), _CODE_TO_COLUMN[key.upper()]
+    if key.lower() in _COLUMN_TO_CODE:
+        return _COLUMN_TO_CODE[key.lower()], key.lower()
+    raise ValueError(
+        f"Unknown ACS variable {variable!r}. Available columns: "
+        f"{', '.join(available_variables())} (or their ACS codes)."
+    )
+
+
 # The Census geography column for a ZCTA query (the response's last column).
 GEO_COLUMN = "zip code tabulation area"
 

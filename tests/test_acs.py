@@ -1,7 +1,10 @@
+import pytest
+
 from census_mcp.acs import (
     ACS_VARIABLES,
     GEO_COLUMN,
     parse_rows,
+    resolve_variable,
     sanitize,
 )
 
@@ -57,3 +60,19 @@ def test_parse_rows_maps_header_to_columns() -> None:
 def test_parse_rows_handles_empty_and_header_only() -> None:
     assert parse_rows([]) == []
     assert parse_rows([[*ACS_VARIABLES, GEO_COLUMN]]) == []
+
+
+def test_resolve_variable_by_code_and_column() -> None:
+    assert resolve_variable("B19013_001E") == ("B19013_001E", "median_household_income")
+    assert resolve_variable("median_household_income") == (
+        "B19013_001E",
+        "median_household_income",
+    )
+    # case-insensitive for both forms
+    assert resolve_variable("b19013_001e")[1] == "median_household_income"
+    assert resolve_variable("MEDIAN_HOUSEHOLD_INCOME")[0] == "B19013_001E"
+
+
+def test_resolve_variable_unknown_raises() -> None:
+    with pytest.raises(ValueError, match="Unknown ACS variable"):
+        resolve_variable("B99999_999E")

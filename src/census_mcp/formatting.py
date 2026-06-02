@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from .models import (
+    AcsValue,
     Comparison,
     Demographics,
     Education,
@@ -117,6 +118,25 @@ def to_education(rec: dict[str, object], vintage: int) -> Education:
         population_25_plus=_int(rec, "pop_25_plus"),
         bachelors_plus_pct=pct(_sum(rec, _BACHELORS_PLUS), pop),
         graduate_or_professional_pct=pct(_sum(rec, _GRADUATE), pop),
+        vintage=vintage,
+    )
+
+
+def to_acs_value(
+    rec: dict[str, object], code: str, column: str, vintage: int
+) -> AcsValue:
+    raw = rec.get(column)
+    value = (
+        raw
+        if isinstance(raw, int | float | str) and not isinstance(raw, bool)
+        else None
+    )
+    return AcsValue(
+        zcta=cast("str", rec["zcta"]),
+        name=_str(rec, "name"),
+        variable=code,
+        column=column,
+        value=value,
         vintage=vintage,
     )
 

@@ -5,6 +5,7 @@ from census_mcp.formatting import (
     available_metrics,
     metric_value,
     pct,
+    to_acs_value,
     to_comparison,
     to_demographics,
     to_education,
@@ -132,6 +133,27 @@ def test_to_income_none_when_share_unknown() -> None:
     }
     inc = to_income(rec, 2023)
     assert inc.households_200k_plus_pct is None
+
+
+def test_to_acs_value_numeric_string_and_missing() -> None:
+    rec: dict[str, object] = {
+        "zcta": "90069",
+        "name": "ZCTA5 90069",
+        "median_household_income": 105000,
+        "median_age": 39.5,
+    }
+    num = to_acs_value(rec, "B19013_001E", "median_household_income", 2023)
+    assert num.value == 105000
+    assert num.variable == "B19013_001E"
+    assert num.column == "median_household_income"
+
+    # the 'name' variable is a string
+    name = to_acs_value(rec, "NAME", "name", 2023)
+    assert name.value == "ZCTA5 90069"
+
+    # a column absent from the record → None
+    missing = to_acs_value(rec, "B25077_001E", "median_home_value", 2023)
+    assert missing.value is None
 
 
 def test_metric_value_direct_and_derived() -> None:

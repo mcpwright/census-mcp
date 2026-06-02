@@ -71,6 +71,23 @@ async def test_compare_zips_empty_raises(ctx) -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_acs_variable_by_column_and_code(ctx) -> None:
+    by_col = await server.get_acs_variable("90069", "median_household_income", ctx)
+    assert by_col.value == 105000
+    assert by_col.variable == "B19013_001E"
+
+    by_code = await server.get_acs_variable("90069", "B19013_001E", ctx)
+    assert by_code.value == 105000
+    assert by_code.column == "median_household_income"
+
+
+@pytest.mark.asyncio
+async def test_get_acs_variable_unknown_raises(ctx) -> None:
+    with pytest.raises(ValueError, match="Unknown ACS variable"):
+        await server.get_acs_variable("90069", "B99999_999E", ctx)
+
+
+@pytest.mark.asyncio
 async def test_zip_plus_four_is_accepted(ctx) -> None:
     info = await server.lookup_zip("90069-1234", ctx)
     assert info.zcta == "90069"
