@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .acs import ACS_FIELDS, ACS_VARIABLES, parse_rows
+from .places import PLACE_REL_VINTAGE, parse_place_rows
 
 if TYPE_CHECKING:
     from .census_client import CensusClient
@@ -54,6 +55,16 @@ def default_store_path() -> Path:
 # Data columns (everything but the zcta primary key), derived from ACS_FIELDS so
 # the schema can never drift from what we fetch.
 _DATA_COLUMNS: list[str] = [col for _code, col, _kind in ACS_FIELDS]
+
+# Columns of the ZCTA-to-place table (populated from the relationship file).
+_PLACE_COLUMNS: list[str] = [
+    "zcta",
+    "name_display",
+    "name_norm",
+    "name_key",
+    "state",
+    "coverage",
+]
 
 
 class Store:
@@ -94,6 +105,19 @@ class Store:
         v = self._meta("vintage")
         return int(v) if v is not None else None
 
+    def places_loaded(self) -> bool:
+        """True once the ZCTA-to-place table exists and holds at least one row."""
+        conn = self.connect()
+        if not self._table_exists("zcta_place"):
+            return False
+        count = conn.execute("SELECT COUNT(*) FROM zcta_place").fetchone()[0]
+        return bool(count)
+
+    def place_vintage(self) -> int | None:
+        """The geography vintage of the loaded ZCTA-to-place relationship, if any."""
+        v = self._meta("place_rel_vintage")
+        return int(v) if v is not None else None
+
     def metadata(self) -> dict[str, str]:
         conn = self.connect()
         if not self._table_exists("meta"):
@@ -114,6 +138,45 @@ class Store:
             return None
         # sqlite3.Row iterates VALUES, not column names — .keys() is required here.
         return {key: row[key] for key in row.keys()}  # noqa: SIM118
+
+    def find_places(
+        self, name_norm: str, name_key: str, state: str | None = None
+    ) -> list[dict[str, object]]:
+        """ZCTA-to-place rows matching a place name, best land coverage first.
+
+        ``name_norm`` is the normalized query, ``name_key`` is the query with a
+        trailing Census descriptor stripped (see ``places.place_name_key``).
+
+        - If the query carried a descriptor (``name_key != name_norm``, e.g.
+          "Cambridge city"), only an exact full-name match counts.
+        - If it didn't (a bare "Cambridge"), it also matches any row whose
+          descriptor-stripped key equals it — so "Cambridge" finds "Cambridge
+          city".
+
+        The two arms are deliberately not crossed: a stripped query is never
+        matched against a row's full name (nor vice versa), so "Carson City"
+        won't collide with the unrelated "Carson city". Optionally filters to a
+        USPS state abbreviation; rows are sorted by ``coverage`` descending (no-
+        coverage rows last).
+        """
+        conn = self.connect()
+        if not self._table_exists("zcta_place"):
+            return []
+        if name_key != name_norm:  # query already had a descriptor
+            clause, params = "name_norm = ?", [name_norm]
+        else:  # bare query — also match rows whose stripped key equals it
+            clause, params = "(name_norm = ? OR name_key = ?)", [name_norm, name_norm]
+        sql = (
+            f"SELECT zcta, name_display, state, coverage FROM zcta_place WHERE {clause}"
+        )
+        if state:
+            sql += " AND state = ?"
+            params.append(state)
+        sql += " ORDER BY coverage IS NULL, coverage DESC"
+        return [
+            {key: row[key] for key in row.keys()}  # noqa: SIM118
+            for row in conn.execute(sql, params)
+        ]
 
     # --- writes ------------------------------------------------------------
     def replace_all(self, records: list[dict[str, object]], vintage: int) -> int:
@@ -144,6 +207,35 @@ class Store:
                 (str(len(records)),),
             )
         return len(records)
+
+    def replace_places(self, rows: list[dict[str, object]], vintage: int) -> int:
+        """Atomically rebuild the ZCTA-to-place table from ``rows``."""
+        conn = self.connect()
+        placeholders = ", ".join("?" for _ in _PLACE_COLUMNS)
+        with conn:  # one transaction
+            conn.execute("DROP TABLE IF EXISTS zcta_place")
+            conn.execute(
+                "CREATE TABLE zcta_place ("
+                "zcta TEXT, name_display TEXT, name_norm TEXT, "
+                "name_key TEXT, state TEXT, coverage REAL)"
+            )
+            conn.executemany(
+                f"INSERT INTO zcta_place ({', '.join(_PLACE_COLUMNS)}) "
+                f"VALUES ({placeholders})",
+                [tuple(rec.get(c) for c in _PLACE_COLUMNS) for rec in rows],
+            )
+            # Name lookups drive every find_zips query.
+            conn.execute("CREATE INDEX idx_place_norm ON zcta_place (name_norm)")
+            conn.execute("CREATE INDEX idx_place_key ON zcta_place (name_key)")
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)"
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO meta (key, value) "
+                "VALUES ('place_rel_vintage', ?)",
+                (str(vintage),),
+            )
+        return len(rows)
 
     # --- internals ---------------------------------------------------------
     def _table_exists(self, name: str) -> bool:
@@ -178,3 +270,14 @@ async def load_store(
     raw = await client.fetch_all_zctas(ACS_VARIABLES, vintage)
     records = parse_rows(raw)
     return store.replace_all(records, vintage)
+
+
+async def load_places(store: Store, client: CensusClient) -> int:
+    """Download the 2020 ZCTA-to-Place relationship file and (re)build its table.
+
+    Independent of the ACS load and needs no API key (the relationship file is a
+    public static download). Returns the number of (ZCTA, place) rows stored.
+    """
+    text = await client.fetch_zcta_place_rel()
+    rows = parse_place_rows(text)
+    return store.replace_places(rows, PLACE_REL_VINTAGE)

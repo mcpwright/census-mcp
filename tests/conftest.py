@@ -55,12 +55,60 @@ SEED: list[dict[str, object]] = [
 
 SEED_VINTAGE = 2023
 
+# ZCTA-to-place rows for find_zips. West Hollywood spans two ZCTAs (coverage
+# ordering); Cambridge appears in MA and OH (state filter + disambiguation).
+SEED_PLACES: list[dict[str, object]] = [
+    {
+        "zcta": "90069",
+        "name_display": "West Hollywood city",
+        "name_norm": "west hollywood city",
+        "name_key": "west hollywood",
+        "state": "CA",
+        "coverage": 0.82,
+    },
+    {
+        "zcta": "90046",
+        "name_display": "West Hollywood city",
+        "name_norm": "west hollywood city",
+        "name_key": "west hollywood",
+        "state": "CA",
+        "coverage": 0.15,
+    },
+    {
+        "zcta": "02138",
+        "name_display": "Cambridge city",
+        "name_norm": "cambridge city",
+        "name_key": "cambridge",
+        "state": "MA",
+        "coverage": 0.55,
+    },
+    {
+        "zcta": "02139",
+        "name_display": "Cambridge city",
+        "name_norm": "cambridge city",
+        "name_key": "cambridge",
+        "state": "MA",
+        "coverage": 0.40,
+    },
+    {
+        "zcta": "43725",
+        "name_display": "Cambridge city",
+        "name_norm": "cambridge city",
+        "name_key": "cambridge",
+        "state": "OH",
+        "coverage": 0.90,
+    },
+]
+
+SEED_PLACE_VINTAGE = 2020
+
 
 @pytest.fixture
 def store(tmp_path: Path) -> Iterator[Store]:
-    """A Store backed by a temp SQLite file, pre-seeded with SEED."""
+    """A Store backed by a temp SQLite file, pre-seeded with ACS + place rows."""
     s = Store(tmp_path / "acs.sqlite3")
     s.replace_all(SEED, SEED_VINTAGE)
+    s.replace_places(SEED_PLACES, SEED_PLACE_VINTAGE)
     try:
         yield s
     finally:

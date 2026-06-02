@@ -109,3 +109,58 @@ async def test_invalid_zip_raises(ctx) -> None:
 async def test_unknown_zip_raises_with_hint(ctx) -> None:
     with pytest.raises(ValueError, match="No Census ZCTA data"):
         await server.lookup_zip("99999", ctx)
+
+
+@pytest.mark.asyncio
+async def test_find_zips_ranks_by_coverage(ctx) -> None:
+    res = await server.find_zips("West Hollywood", ctx)
+    assert res.query == "West Hollywood"
+    assert [m.zcta for m in res.matches] == ["90069", "90046"]  # 82% then 15%
+    assert res.matches[0].place_name == "West Hollywood city"
+    assert res.matches[0].state == "CA"
+    assert res.matches[0].coverage_pct == 82.0
+    assert res.vintage == 2020
+
+
+@pytest.mark.asyncio
+async def test_find_zips_descriptor_optional(ctx) -> None:
+    # "Cambridge city" and "Cambridge" find the same places.
+    a = await server.find_zips("Cambridge", ctx)
+    b = await server.find_zips("Cambridge city", ctx)
+    assert {m.zcta for m in a.matches} == {m.zcta for m in b.matches}
+
+
+@pytest.mark.asyncio
+async def test_find_zips_state_filter_disambiguates(ctx) -> None:
+    # Without a state, OH (0.90) outranks the MA ZCTAs.
+    no_state = await server.find_zips("Cambridge", ctx)
+    assert [m.zcta for m in no_state.matches] == ["43725", "02138", "02139"]
+    # A full state name narrows to MA.
+    ma = await server.find_zips("Cambridge", ctx, state="Massachusetts")
+    assert [m.zcta for m in ma.matches] == ["02138", "02139"]
+    assert ma.state == "MA"
+
+
+@pytest.mark.asyncio
+async def test_find_zips_unknown_place_raises(ctx) -> None:
+    with pytest.raises(ValueError, match="No Census place matching"):
+        await server.find_zips("Nowheresville", ctx)
+
+
+@pytest.mark.asyncio
+async def test_find_zips_blank_place_raises(ctx) -> None:
+    with pytest.raises(ValueError, match="Pass a place name"):
+        await server.find_zips("   ", ctx)
+
+
+@pytest.mark.asyncio
+async def test_find_zips_unknown_state_raises(ctx) -> None:
+    with pytest.raises(ValueError, match="Unknown state"):
+        await server.find_zips("Cambridge", ctx, state="ZZ")
+
+
+@pytest.mark.asyncio
+async def test_find_zips_valid_state_no_match_raises(ctx) -> None:
+    # State resolves fine but no Cambridge there — error names the state.
+    with pytest.raises(ValueError, match="in TX"):
+        await server.find_zips("Cambridge", ctx, state="TX")

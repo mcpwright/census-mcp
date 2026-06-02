@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 
 import httpx
 
+from .places import ZCTA_PLACE_REL_URL
+
 ACS5_URL = "https://api.census.gov/data/{year}/acs/acs5"
 KEY_SIGNUP_URL = "https://api.census.gov/data/key_signup.html"
 
@@ -109,3 +111,36 @@ class CensusClient:
         return await self._get(
             year, variables, "zip code tabulation area:" + ",".join(zctas)
         )
+
+    async def fetch_zcta_place_rel(self) -> str:
+        """Download the 2020 ZCTA-to-Place relationship file as text.
+
+        A static, public-domain Census flat file on ``www2.census.gov`` — no API
+        key needed (unlike the ACS endpoint). Retries transient errors (429/5xx)
+        with backoff; returns the raw pipe-delimited body.
+        """
+        last_exc: Exception | None = None
+        for attempt in range(self._max_retries):
+            try:
+                resp = await self._client.get(ZCTA_PLACE_REL_URL, follow_redirects=True)
+            except httpx.HTTPError as exc:  # network/timeout — retry
+                last_exc = exc
+                await asyncio.sleep(2**attempt)
+                continue
+
+            if resp.status_code == 404:
+                raise CensusError(
+                    f"ZCTA-to-Place relationship file not found at {ZCTA_PLACE_REL_URL}"
+                )
+            if resp.status_code == 429 or resp.status_code >= 500:  # transient
+                last_exc = CensusError(
+                    f"Census returned {resp.status_code} for {ZCTA_PLACE_REL_URL}"
+                )
+                await asyncio.sleep(2**attempt)
+                continue
+            resp.raise_for_status()
+            return resp.text
+
+        raise CensusError(
+            f"Relationship-file request failed after {self._max_retries} attempts"
+        ) from last_exc

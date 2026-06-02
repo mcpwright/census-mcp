@@ -10,6 +10,7 @@ from census_mcp.census_client import (
     CensusError,
     MissingKeyError,
 )
+from census_mcp.places import ZCTA_PLACE_REL_URL
 
 
 @pytest.mark.asyncio
@@ -60,6 +61,33 @@ async def test_latest_year_returns_first_available() -> None:
     year = await client.latest_year()
     # latest_year probes newest-first, starting at (current year - 1).
     assert year == datetime.now(UTC).year - 1
+    await client.aclose()
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_fetch_zcta_place_rel_returns_text_without_key() -> None:
+    # The relationship file is a public static download — no API key required.
+    client = CensusClient(api_key=None)
+    body = "GEOID_ZCTA5_20|GEOID_PLACE_20\n02139|2511000\n"
+    respx.get(ZCTA_PLACE_REL_URL).mock(return_value=httpx.Response(200, text=body))
+    text = await client.fetch_zcta_place_rel()
+    assert text == body
+    await client.aclose()
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_fetch_zcta_place_rel_retries_then_raises(monkeypatch) -> None:
+    async def _no_sleep(_seconds: float) -> None:
+        return None
+
+    monkeypatch.setattr("census_mcp.census_client.asyncio.sleep", _no_sleep)
+    client = CensusClient(api_key="x", max_retries=2)
+    route = respx.get(ZCTA_PLACE_REL_URL).mock(return_value=httpx.Response(503))
+    with pytest.raises(CensusError):
+        await client.fetch_zcta_place_rel()
+    assert route.call_count == 2
     await client.aclose()
 
 

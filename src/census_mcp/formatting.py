@@ -14,9 +14,11 @@ from .models import (
     Comparison,
     Demographics,
     Education,
+    FindZips,
     Housing,
     Income,
     ZipInfo,
+    ZipMatch,
     ZipMetric,
 )
 
@@ -153,6 +155,29 @@ def to_income(rec: dict[str, object], vintage: int) -> Income:
         ),
         vintage=vintage,
     )
+
+
+def _pct_of_fraction(v: object) -> float | None:
+    """A stored 0-1 land-coverage fraction as a 0-100 percentage."""
+    if isinstance(v, bool) or not isinstance(v, int | float):
+        return None
+    return round(100.0 * v, 1)
+
+
+def to_find_zips(
+    query: str, state: str | None, rows: list[dict[str, object]], vintage: int
+) -> FindZips:
+    """Build a FindZips result from ranked ZCTA-to-place rows."""
+    matches = [
+        ZipMatch(
+            zcta=cast("str", r["zcta"]),
+            place_name=_str(r, "name_display"),
+            state=_str(r, "state"),
+            coverage_pct=_pct_of_fraction(r.get("coverage")),
+        )
+        for r in rows
+    ]
+    return FindZips(query=query, state=state, matches=matches, vintage=vintage)
 
 
 # Scalar metrics that can be ranked across ZIPs: name -> extractor(record).
