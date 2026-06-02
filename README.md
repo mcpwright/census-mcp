@@ -21,6 +21,7 @@ Census API key is required for the one-time download.
 | `get_income(zip_code)` | Median household income, per-capita income, total households, and the % of households earning $200k+. |
 | `get_demographics(zip_code)` | Total population and median age. |
 | `get_housing(zip_code)` | Median home value, median gross rent, occupied units, and % owner-occupied. |
+| `get_education(zip_code)` | Of adults 25+, the % with a bachelor's degree or higher and the % with a graduate/professional degree. |
 
 ZIP ≈ ZCTA (ZIP Code Tabulation Area): they mostly coincide, but ~2% of ZIPs (PO-box-only /
 non-residential) have no ZCTA and will return an error. All figures are ACS 5-year *estimates*.
@@ -81,7 +82,7 @@ uv run mcp dev src/census_mcp/server.py              # poke the tools in the MCP
 - [x] `get_income` — income measures + % $200k+
 - [x] `get_demographics` — population + median age _(age brackets still to come)_
 - [x] `get_housing` — median home value, rent, % owner-occupied
-- [ ] `get_education` — % bachelor's+, % graduate
+- [x] `get_education` — % bachelor's+, % graduate
 - [ ] `compare_zips` — one metric across several ZIPs, ranked
 - [ ] `get_acs_variable` — raw value for any ACS variable (escape hatch)
 - [ ] Publish to PyPI (`mcpwright-census`) + the official MCP Registry

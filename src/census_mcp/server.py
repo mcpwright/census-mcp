@@ -19,8 +19,14 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from .census_client import CensusClient, MissingKeyError
-from .formatting import to_demographics, to_housing, to_income, to_zip_info
-from .models import Demographics, Housing, Income, ZipInfo
+from .formatting import (
+    to_demographics,
+    to_education,
+    to_housing,
+    to_income,
+    to_zip_info,
+)
+from .models import Demographics, Education, Housing, Income, ZipInfo
 from .store import Store, load_store
 
 _INSTRUCTIONS = """\
@@ -34,6 +40,8 @@ Typical flow:
 - `get_demographics` returns total population and median age.
 - `get_housing` returns median home value, median gross rent, and the
   owner-occupied share.
+- `get_education` returns the share of adults (25+) with a bachelor's degree or
+  higher, and with a graduate/professional degree.
 
 Notes:
 - ZIP ≈ ZCTA (ZIP Code Tabulation Area). They mostly coincide, but ~2% of ZIPs
@@ -163,6 +171,18 @@ async def get_housing(zip_code: str, ctx: Context) -> Housing:
     """
     rec, vintage = await _record(_app(ctx), zip_code)
     return to_housing(rec, vintage)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+async def get_education(zip_code: str, ctx: Context) -> Education:
+    """Educational attainment for a ZIP: % bachelor's+ and % graduate degree.
+
+    `zip_code`: a 5-digit US ZIP. Of the population aged 25 and over, returns
+    the percent with a bachelor's degree or higher and the percent with a
+    graduate or professional degree — ACS 5-year estimates.
+    """
+    rec, vintage = await _record(_app(ctx), zip_code)
+    return to_education(rec, vintage)
 
 
 async def _run_load() -> None:

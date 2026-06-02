@@ -75,3 +75,23 @@ class Housing(BaseModel):
         description="Percent of occupied units that are owner-occupied (0-100)",
     )
     vintage: int = Field(description="ACS 5-year data vintage (end year)")
+
+
+class Education(BaseModel):
+    """Educational attainment among the 25-and-older population of a ZIP / ZCTA."""
+
+    zcta: str = Field(description="5-digit ZIP Code Tabulation Area")
+    name: str | None = Field(default=None, description="Census name for the area")
+    population_25_plus: int | None = Field(
+        default=None, description="Population aged 25 and over (the attainment base)"
+    )
+    bachelors_plus_pct: float | None = Field(
+        default=None,
+        description="Percent of those 25+ with a bachelor's degree or higher (0-100)",
+    )
+    graduate_or_professional_pct: float | None = Field(
+        default=None,
+        description="Percent of those 25+ with a graduate or professional degree "
+        "(master's, professional, or doctorate) (0-100)",
+    )
+    vintage: int = Field(description="ACS 5-year data vintage (end year)")

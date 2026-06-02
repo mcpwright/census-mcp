@@ -1,6 +1,8 @@
 from census_mcp.formatting import (
+    _sum,
     pct,
     to_demographics,
+    to_education,
     to_housing,
     to_income,
     to_zip_info,
@@ -61,6 +63,43 @@ def test_to_housing_computes_owner_pct() -> None:
 def test_to_housing_none_when_units_unknown() -> None:
     h = to_housing({"zcta": "00601", "owner_occupied_units": 100}, 2023)
     assert h.owner_occupied_pct is None  # no occupied_units denominator
+
+
+def test_sum_returns_none_if_any_component_missing() -> None:
+    rec: dict[str, object] = {"a": 1, "b": 2, "c": None}
+    assert _sum(rec, ("a", "b")) == 3
+    assert _sum(rec, ("a", "c")) is None  # suppressed component → None, not partial
+
+
+def test_to_education_computes_shares() -> None:
+    rec: dict[str, object] = {
+        "zcta": "90069",
+        "name": "ZCTA5 90069",
+        "pop_25_plus": 19000,
+        "bachelors": 6000,
+        "masters": 3000,
+        "professional_degree": 800,
+        "doctorate": 400,
+    }
+    e = to_education(rec, 2023)
+    assert e.population_25_plus == 19000
+    assert e.bachelors_plus_pct == 53.7  # (6000+3000+800+400) / 19000
+    assert e.graduate_or_professional_pct == 22.1  # (3000+800+400) / 19000
+    assert e.vintage == 2023
+
+
+def test_to_education_none_when_component_suppressed() -> None:
+    rec: dict[str, object] = {
+        "zcta": "00601",
+        "pop_25_plus": 11000,
+        "bachelors": 1200,
+        "masters": None,  # suppressed
+        "professional_degree": 60,
+        "doctorate": 30,
+    }
+    e = to_education(rec, 2023)
+    assert e.bachelors_plus_pct is None
+    assert e.graduate_or_professional_pct is None
 
 
 def test_to_income_computes_derived_pct() -> None:

@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from typing import cast
 
-from .models import Demographics, Housing, Income, ZipInfo
+from .models import Demographics, Education, Housing, Income, ZipInfo
+
+# Degree-attainment components (ACS B15003) summed for the education metrics.
+_BACHELORS_PLUS = ("bachelors", "masters", "professional_degree", "doctorate")
+_GRADUATE = ("masters", "professional_degree", "doctorate")
 
 
 def _int(rec: dict[str, object], key: str) -> int | None:
@@ -28,6 +32,21 @@ def _float(rec: dict[str, object], key: str) -> float | None:
 def _str(rec: dict[str, object], key: str) -> str | None:
     v = rec.get(key)
     return v if isinstance(v, str) else None
+
+
+def _sum(rec: dict[str, object], keys: tuple[str, ...]) -> int | None:
+    """Sum integer components, or None if any one is missing/suppressed.
+
+    Returning None (rather than a partial total) keeps a derived percentage
+    honest when the Census suppressed one of the inputs for a small area.
+    """
+    total = 0
+    for key in keys:
+        v = rec.get(key)
+        if not isinstance(v, int) or isinstance(v, bool):
+            return None
+        total += v
+    return total
 
 
 def pct(part: object, whole: object, digits: int = 1) -> float | None:
@@ -68,6 +87,18 @@ def to_housing(rec: dict[str, object], vintage: int) -> Housing:
         owner_occupied_pct=pct(
             rec.get("owner_occupied_units"), rec.get("occupied_units")
         ),
+        vintage=vintage,
+    )
+
+
+def to_education(rec: dict[str, object], vintage: int) -> Education:
+    pop = rec.get("pop_25_plus")
+    return Education(
+        zcta=cast("str", rec["zcta"]),
+        name=_str(rec, "name"),
+        population_25_plus=_int(rec, "pop_25_plus"),
+        bachelors_plus_pct=pct(_sum(rec, _BACHELORS_PLUS), pop),
+        graduate_or_professional_pct=pct(_sum(rec, _GRADUATE), pop),
         vintage=vintage,
     )
 
