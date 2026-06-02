@@ -1,0 +1,29 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.mcpwright/census-mcp",
+  "title": "Census (ACS by ZIP)",
+  "description": "U.S. Census (ACS) data by ZIP: income, demographics, housing, education, from a local store.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/mcpwright/census-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mcpwright-census",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "CENSUS_API_KEY",
+          "description": "Free Census API key (get one at https://api.census.gov/data/key_signup.html). Required for the one-time bulk download of the ACS dataset.",
+          "isRequired": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
