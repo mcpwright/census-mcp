@@ -23,6 +23,7 @@ Census API key is required for the one-time download.
 | `get_housing(zip_code)` | Median home value, median gross rent, occupied units, and % owner-occupied. |
 | `get_education(zip_code)` | Of adults 25+, the % with a bachelor's degree or higher and the % with a graduate/professional degree. |
 | `compare_zips(zips, metric)` | Rank several ZIPs by one metric (income, age, home value, attainment, …), highest first. |
+| `get_acs_variable(zip_code, variable)` | Escape hatch: the raw value of any stored ACS variable, by code or friendly name. |
 
 ZIP ≈ ZCTA (ZIP Code Tabulation Area): they mostly coincide, but ~2% of ZIPs (PO-box-only /
 non-residential) have no ZCTA and will return an error. All figures are ACS 5-year *estimates*.
@@ -85,7 +86,7 @@ uv run mcp dev src/census_mcp/server.py              # poke the tools in the MCP
 - [x] `get_housing` — median home value, rent, % owner-occupied
 - [x] `get_education` — % bachelor's+, % graduate
 - [x] `compare_zips` — one metric across several ZIPs, ranked
-- [ ] `get_acs_variable` — raw value for any ACS variable (escape hatch)
+- [x] `get_acs_variable` — raw value for any stored ACS variable (escape hatch)
 - [ ] Publish to PyPI (`mcpwright-census`) + the official MCP Registry
 
 ## Questions & feedback

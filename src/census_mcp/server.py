@@ -18,9 +18,11 @@ from typing import cast
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from .acs import resolve_variable
 from .census_client import CensusClient, MissingKeyError
 from .formatting import (
     available_metrics,
+    to_acs_value,
     to_comparison,
     to_demographics,
     to_education,
@@ -28,7 +30,15 @@ from .formatting import (
     to_income,
     to_zip_info,
 )
-from .models import Comparison, Demographics, Education, Housing, Income, ZipInfo
+from .models import (
+    AcsValue,
+    Comparison,
+    Demographics,
+    Education,
+    Housing,
+    Income,
+    ZipInfo,
+)
 from .store import Store, load_store
 
 _INSTRUCTIONS = """\
@@ -46,6 +56,8 @@ Typical flow:
   higher, and with a graduate/professional degree.
 - `compare_zips` ranks several ZIPs by one metric (e.g. median_household_income,
   median_home_value, median_age, bachelors_plus_pct).
+- `get_acs_variable` is an escape hatch: the raw value of one ACS variable
+  (by code or friendly name) for a ZIP, limited to the variables in the store.
 
 Notes:
 - ZIP ≈ ZCTA (ZIP Code Tabulation Area). They mostly coincide, but ~2% of ZIPs
@@ -214,6 +226,22 @@ async def compare_zips(zips: list[str], metric: str, ctx: Context) -> Comparison
         zcta = _normalize_zip(zip_code)
         rows.append((zcta, app.store.get(zcta)))
     return to_comparison(rows, metric, vintage)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+async def get_acs_variable(zip_code: str, variable: str, ctx: Context) -> AcsValue:
+    """Raw value of a single ACS variable for a ZIP — an escape hatch.
+
+    `zip_code`: a 5-digit US ZIP. `variable`: an ACS variable code (e.g.
+    `B19013_001E`) or the friendly store-column name (e.g.
+    `median_household_income`); both match case-insensitively. Returns that one
+    value for the ZIP. Limited to the variables held in the local store (the
+    same ones the other tools draw on); an unknown variable errors with the
+    full list.
+    """
+    code, column = resolve_variable(variable)
+    rec, vintage = await _record(_app(ctx), zip_code)
+    return to_acs_value(rec, code, column, vintage)
 
 
 async def _run_load() -> None:
