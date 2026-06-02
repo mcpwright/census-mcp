@@ -114,6 +114,40 @@ class AcsValue(BaseModel):
     vintage: int = Field(description="ACS 5-year data vintage (end year)")
 
 
+class ZipMatch(BaseModel):
+    """One ZIP (ZCTA) that intersects a queried place."""
+
+    zcta: str = Field(description="5-digit ZIP Code Tabulation Area")
+    place_name: str | None = Field(
+        default=None,
+        description="Census place the ZIP falls within, e.g. 'Cambridge city'",
+    )
+    state: str | None = Field(
+        default=None, description="2-letter USPS state code of the place"
+    )
+    coverage_pct: float | None = Field(
+        default=None,
+        description="Percent of this ZCTA's land area that lies within the place "
+        "(0-100); higher means the ZIP sits more fully inside the place",
+    )
+
+
+class FindZips(BaseModel):
+    """ZIPs intersecting a named place, best land coverage first."""
+
+    query: str = Field(description="The place name searched for")
+    state: str | None = Field(
+        default=None, description="The 2-letter USPS state filter applied, if any"
+    )
+    matches: list[ZipMatch] = Field(
+        description="ZCTAs intersecting the place, sorted by coverage_pct "
+        "descending. Empty places (no match) raise an error instead."
+    )
+    vintage: int = Field(
+        description="Census geography year of the ZCTA-to-place relationship (2020)"
+    )
+
+
 class ZipMetric(BaseModel):
     """One ZIP's value for a single metric, used in a ranked comparison."""
 

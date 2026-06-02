@@ -24,9 +24,15 @@ Census API key is required for the one-time download.
 | `get_education(zip_code)` | Of adults 25+, the % with a bachelor's degree or higher and the % with a graduate/professional degree. |
 | `compare_zips(zips, metric)` | Rank several ZIPs by one metric (income, age, home value, attainment, …), highest first. |
 | `get_acs_variable(zip_code, variable)` | Escape hatch: the raw value of any stored ACS variable, by code or friendly name. |
+| `find_zips(place, state=None)` | Reverse lookup: the ZIPs that fall within a city/town/CDP, ranked by how much of each ZIP's land lies in the place. |
 
 ZIP ≈ ZCTA (ZIP Code Tabulation Area): they mostly coincide, but ~2% of ZIPs (PO-box-only /
-non-residential) have no ZCTA and will return an error. All figures are ACS 5-year *estimates*.
+non-residential) have no ZCTA and will return an error. All ACS figures are 5-year *estimates*.
+
+`find_zips` is the reverse direction (place → ZIPs). It's approximate: ZCTAs don't nest inside
+places, so a ZIP can span several places and vice versa — read each match's `coverage_pct` and
+pass a `state` to disambiguate same-named places (e.g. Cambridge, MA vs OH). It's built on the
+public 2020 Census ZCTA-to-Place relationship file (2020 geography; no API key needed for it).
 
 ## Install
 
@@ -87,6 +93,8 @@ uv run mcp dev src/census_mcp/server.py              # poke the tools in the MCP
 - [x] `get_education` — % bachelor's+, % graduate
 - [x] `compare_zips` — one metric across several ZIPs, ranked
 - [x] `get_acs_variable` — raw value for any stored ACS variable (escape hatch)
+- [x] `find_zips` — reverse lookup: place → ZIPs, ranked by land coverage
+- [ ] `get_demographics` age brackets (under-18 / 18-34 / 35-64 / 65+)
 - [ ] Publish to PyPI (`mcpwright-census`) + the official MCP Registry
 
 ## Questions & feedback
