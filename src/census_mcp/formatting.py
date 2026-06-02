@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from .models import Demographics, Income, ZipInfo
+from .models import Demographics, Housing, Income, ZipInfo
 
 
 def _int(rec: dict[str, object], key: str) -> int | None:
@@ -54,6 +54,20 @@ def to_demographics(rec: dict[str, object], vintage: int) -> Demographics:
         name=_str(rec, "name"),
         population=_int(rec, "population"),
         median_age=_float(rec, "median_age"),
+        vintage=vintage,
+    )
+
+
+def to_housing(rec: dict[str, object], vintage: int) -> Housing:
+    return Housing(
+        zcta=cast("str", rec["zcta"]),
+        name=_str(rec, "name"),
+        median_home_value=_int(rec, "median_home_value"),
+        median_gross_rent=_int(rec, "median_gross_rent"),
+        occupied_units=_int(rec, "occupied_units"),
+        owner_occupied_pct=pct(
+            rec.get("owner_occupied_units"), rec.get("occupied_units")
+        ),
         vintage=vintage,
     )
 

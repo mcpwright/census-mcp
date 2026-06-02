@@ -54,3 +54,24 @@ class Income(BaseModel):
         description="Percent of households with income $200k+ (0-100)",
     )
     vintage: int = Field(description="ACS 5-year data vintage (end year)")
+
+
+class Housing(BaseModel):
+    """Housing measures for a ZIP / ZCTA (all dollar amounts in USD)."""
+
+    zcta: str = Field(description="5-digit ZIP Code Tabulation Area")
+    name: str | None = Field(default=None, description="Census name for the area")
+    median_home_value: int | None = Field(
+        default=None, description="Median value of owner-occupied homes"
+    )
+    median_gross_rent: int | None = Field(
+        default=None, description="Median gross rent (rent + utilities), monthly"
+    )
+    occupied_units: int | None = Field(
+        default=None, description="Total occupied housing units"
+    )
+    owner_occupied_pct: float | None = Field(
+        default=None,
+        description="Percent of occupied units that are owner-occupied (0-100)",
+    )
+    vintage: int = Field(description="ACS 5-year data vintage (end year)")
