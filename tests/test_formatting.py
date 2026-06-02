@@ -1,4 +1,10 @@
-from census_mcp.formatting import pct, to_demographics, to_income, to_zip_info
+from census_mcp.formatting import (
+    pct,
+    to_demographics,
+    to_housing,
+    to_income,
+    to_zip_info,
+)
 
 
 def test_pct() -> None:
@@ -33,6 +39,28 @@ def test_to_demographics_handles_missing_age() -> None:
     d = to_demographics({"zcta": "00601", "population": None, "median_age": None}, 2023)
     assert d.population is None
     assert d.median_age is None
+
+
+def test_to_housing_computes_owner_pct() -> None:
+    rec: dict[str, object] = {
+        "zcta": "90069",
+        "name": "ZCTA5 90069",
+        "median_home_value": 1200000,
+        "median_gross_rent": 2200,
+        "occupied_units": 13800,
+        "owner_occupied_units": 4000,
+    }
+    h = to_housing(rec, 2023)
+    assert h.median_home_value == 1200000
+    assert h.median_gross_rent == 2200
+    assert h.occupied_units == 13800
+    assert h.owner_occupied_pct == 29.0  # 4000 / 13800
+    assert h.vintage == 2023
+
+
+def test_to_housing_none_when_units_unknown() -> None:
+    h = to_housing({"zcta": "00601", "owner_occupied_units": 100}, 2023)
+    assert h.owner_occupied_pct is None  # no occupied_units denominator
 
 
 def test_to_income_computes_derived_pct() -> None:

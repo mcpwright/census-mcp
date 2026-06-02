@@ -19,8 +19,8 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from .census_client import CensusClient, MissingKeyError
-from .formatting import to_demographics, to_income, to_zip_info
-from .models import Demographics, Income, ZipInfo
+from .formatting import to_demographics, to_housing, to_income, to_zip_info
+from .models import Demographics, Housing, Income, ZipInfo
 from .store import Store, load_store
 
 _INSTRUCTIONS = """\
@@ -32,6 +32,8 @@ Typical flow:
 - `get_income` returns median household income, per-capita income, and the share
   of households earning $200k+.
 - `get_demographics` returns total population and median age.
+- `get_housing` returns median home value, median gross rent, and the
+  owner-occupied share.
 
 Notes:
 - ZIP ≈ ZCTA (ZIP Code Tabulation Area). They mostly coincide, but ~2% of ZIPs
@@ -149,6 +151,18 @@ async def get_demographics(zip_code: str, ctx: Context) -> Demographics:
     """
     rec, vintage = await _record(_app(ctx), zip_code)
     return to_demographics(rec, vintage)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+async def get_housing(zip_code: str, ctx: Context) -> Housing:
+    """Housing measures for a ZIP: home value, rent, and owner-occupied share.
+
+    `zip_code`: a 5-digit US ZIP. Returns the median value of owner-occupied
+    homes, the median gross rent (monthly), the number of occupied housing
+    units, and the percent that are owner-occupied — all ACS 5-year estimates.
+    """
+    rec, vintage = await _record(_app(ctx), zip_code)
+    return to_housing(rec, vintage)
 
 
 async def _run_load() -> None:
