@@ -10,8 +10,10 @@ All tools are **read-only**. Data is the U.S. Census Bureau's American Community
 5-year release — **bulk-downloaded once into a local store**, then served offline. A free
 Census API key is required for the one-time download.
 
-> Status: early — `lookup_zip` and `get_income` working today; more tools on the roadmap.
-> Part of the [**mcpwright**](https://github.com/mcpwright) suite.
+> Status: all 8 tools below are live and unit-tested, and the server has been verified
+> end-to-end against the live ACS 5-year release (vintage 2024 at the time of writing — the
+> server auto-detects the latest). PyPI + MCP Registry publish is the next step. Part of the
+> [**mcpwright**](https://github.com/mcpwright) suite.
 
 ## Tools
 
