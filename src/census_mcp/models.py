@@ -95,3 +95,26 @@ class Education(BaseModel):
         "(master's, professional, or doctorate) (0-100)",
     )
     vintage: int = Field(description="ACS 5-year data vintage (end year)")
+
+
+class ZipMetric(BaseModel):
+    """One ZIP's value for a single metric, used in a ranked comparison."""
+
+    zcta: str = Field(description="5-digit ZIP Code Tabulation Area")
+    name: str | None = Field(default=None, description="Census name for the area")
+    value: float | None = Field(
+        default=None,
+        description="The metric's value for this ZIP, or null if unavailable "
+        "(suppressed, or the ZIP has no ZCTA in the local store)",
+    )
+
+
+class Comparison(BaseModel):
+    """Several ZIPs ranked by one metric, highest value first."""
+
+    metric: str = Field(description="The compared metric's name")
+    vintage: int = Field(description="ACS 5-year data vintage (end year)")
+    results: list[ZipMetric] = Field(
+        description="One entry per requested ZIP, sorted by value descending; "
+        "ZIPs with no value are listed last"
+    )

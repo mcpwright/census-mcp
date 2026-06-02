@@ -20,13 +20,15 @@ from mcp.types import ToolAnnotations
 
 from .census_client import CensusClient, MissingKeyError
 from .formatting import (
+    available_metrics,
+    to_comparison,
     to_demographics,
     to_education,
     to_housing,
     to_income,
     to_zip_info,
 )
-from .models import Demographics, Education, Housing, Income, ZipInfo
+from .models import Comparison, Demographics, Education, Housing, Income, ZipInfo
 from .store import Store, load_store
 
 _INSTRUCTIONS = """\
@@ -42,6 +44,8 @@ Typical flow:
   owner-occupied share.
 - `get_education` returns the share of adults (25+) with a bachelor's degree or
   higher, and with a graduate/professional degree.
+- `compare_zips` ranks several ZIPs by one metric (e.g. median_household_income,
+  median_home_value, median_age, bachelors_plus_pct).
 
 Notes:
 - ZIP ≈ ZCTA (ZIP Code Tabulation Area). They mostly coincide, but ~2% of ZIPs
@@ -183,6 +187,33 @@ async def get_education(zip_code: str, ctx: Context) -> Education:
     """
     rec, vintage = await _record(_app(ctx), zip_code)
     return to_education(rec, vintage)
+
+
+@mcp.tool(annotations=_READ_ONLY)
+async def compare_zips(zips: list[str], metric: str, ctx: Context) -> Comparison:
+    """Rank several ZIPs by a single metric, highest value first.
+
+    `zips`: a list of 5-digit US ZIPs to compare. `metric`: one of
+    `population`, `median_age`, `median_household_income`, `per_capita_income`,
+    `households_200k_plus_pct`, `median_home_value`, `median_gross_rent`,
+    `owner_occupied_pct`, `bachelors_plus_pct`, `graduate_or_professional_pct`.
+    Returns each ZIP's value, sorted descending; ZIPs with no data (suppressed
+    or no ZCTA) are listed last. All values are ACS 5-year estimates.
+    """
+    if not zips:
+        raise ValueError("Pass at least one ZIP to compare.")
+    if metric not in available_metrics():
+        raise ValueError(
+            f"Unknown metric {metric!r}. Choose one of: "
+            f"{', '.join(available_metrics())}."
+        )
+    app = _app(ctx)
+    vintage = await _ensure_loaded(app)
+    rows: list[tuple[str, dict[str, object] | None]] = []
+    for zip_code in zips:
+        zcta = _normalize_zip(zip_code)
+        rows.append((zcta, app.store.get(zcta)))
+    return to_comparison(rows, metric, vintage)
 
 
 async def _run_load() -> None:
