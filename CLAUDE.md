@@ -19,10 +19,17 @@ the suite meets the **same engineering bar**, set by the reference server **edga
   pydantic v2 models with a `Field(description=...)` on **every** field, `uv` for deps +
   build, async `httpx`. Tools return typed pydantic models (structured output) and are
   annotated `readOnlyHint=True`.
-- **PR per change, CI-gated.** Branch → PR → the `Code Quality & Tests` check green and
-  branch up to date → squash-merge with a `(#N)` suffix. `main` is branch-protected; **no
-  direct pushes**. Commit messages: imperative subject + a short body, ending with the dual
-  trailer (`Co-authored-by: Devender …` + `Co-authored-by: Claude …`).
+- **PR per change, CI-gated.** Standard flow:
+  **feature branch → code → code-review subagent → fold in findings → PR → CI green → squash-merge.**
+  - *Code-review subagent:* before opening the PR, spawn a subagent to adversarially review the
+    diff (`git diff main...HEAD`) — correctness bugs first, then consistency / simplification /
+    test gaps, returning severity-tagged findings (BLOCKER / SHOULD-FIX / NICE-TO-HAVE). Address
+    BLOCKER/SHOULD-FIX (and add a regression test for any real bug) before the PR.
+  - *Merge:* the `Code Quality & Tests` check green and branch up to date → squash-merge with a
+    `(#N)` suffix. `main` is branch-protected; **no direct pushes**.
+  - *Commits:* imperative subject + a short body, ending with the dual trailer
+    (`Co-authored-by: Devender …` + `Co-authored-by: Claude …`).
+  - One focused change per PR — keep process/docs changes (like this one) out of feature PRs.
 - **Green locally before pushing:**
   ```bash
   uv run ruff check src/ && uv run ruff format --check src/ && uv run mypy && uv run pytest -v
