@@ -165,7 +165,7 @@ async def _record(app: AppContext, zip_code: str) -> tuple[dict[str, object], in
     return rec, vintage
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Look up a ZIP", annotations=_READ_ONLY)
 async def lookup_zip(zip_code: str, ctx: Context) -> ZipInfo:
     """Confirm a ZIP maps to a Census ZCTA and return its name and population.
 
@@ -177,7 +177,7 @@ async def lookup_zip(zip_code: str, ctx: Context) -> ZipInfo:
     return to_zip_info(rec, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Get income by ZIP", annotations=_READ_ONLY)
 async def get_income(zip_code: str, ctx: Context) -> Income:
     """Income measures for a ZIP: median household, per-capita, and % $200k+.
 
@@ -189,7 +189,7 @@ async def get_income(zip_code: str, ctx: Context) -> Income:
     return to_income(rec, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Get demographics by ZIP", annotations=_READ_ONLY)
 async def get_demographics(zip_code: str, ctx: Context) -> Demographics:
     """Population and median age for a ZIP.
 
@@ -201,7 +201,7 @@ async def get_demographics(zip_code: str, ctx: Context) -> Demographics:
     return to_demographics(rec, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Get housing by ZIP", annotations=_READ_ONLY)
 async def get_housing(zip_code: str, ctx: Context) -> Housing:
     """Housing measures for a ZIP: home value, rent, and owner-occupied share.
 
@@ -213,7 +213,7 @@ async def get_housing(zip_code: str, ctx: Context) -> Housing:
     return to_housing(rec, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Get education by ZIP", annotations=_READ_ONLY)
 async def get_education(zip_code: str, ctx: Context) -> Education:
     """Educational attainment for a ZIP: % bachelor's+ and % graduate degree.
 
@@ -225,7 +225,7 @@ async def get_education(zip_code: str, ctx: Context) -> Education:
     return to_education(rec, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Compare ZIPs", annotations=_READ_ONLY)
 async def compare_zips(zips: list[str], metric: str, ctx: Context) -> Comparison:
     """Rank several ZIPs by a single metric, highest value first.
 
@@ -252,7 +252,7 @@ async def compare_zips(zips: list[str], metric: str, ctx: Context) -> Comparison
     return to_comparison(rows, metric, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Get a raw ACS variable", annotations=_READ_ONLY)
 async def get_acs_variable(zip_code: str, variable: str, ctx: Context) -> AcsValue:
     """Raw value of a single ACS variable for a ZIP — an escape hatch.
 
@@ -268,7 +268,7 @@ async def get_acs_variable(zip_code: str, variable: str, ctx: Context) -> AcsVal
     return to_acs_value(rec, code, column, vintage)
 
 
-@mcp.tool(annotations=_READ_ONLY)
+@mcp.tool(title="Find ZIPs for a place", annotations=_READ_ONLY)
 async def find_zips(place: str, ctx: Context, state: str | None = None) -> FindZips:
     """Reverse lookup: the ZIPs (ZCTAs) that fall within a named place.
 
