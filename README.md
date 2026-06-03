@@ -100,6 +100,19 @@ uv run mcp dev src/census_mcp/server.py              # poke the tools in the MCP
 - [ ] `get_demographics` age brackets (under-18 / 18-34 / 35-64 / 65+)
 - [x] Publish to PyPI (`mcpwright-census`) + the official MCP Registry
 
+## Privacy
+
+census-mcp runs entirely **on your machine** and collects, stores, or transmits **no personal
+data** — no accounts, no tracking, no telemetry. Its only outbound requests go to the public
+**U.S. Census Bureau** to download public data: `api.census.gov` for the ACS dataset (using
+**your own** `CENSUS_API_KEY`), and `www2.census.gov` for the place-lookup file used by
+`find_zips` (no key needed). The key is read from your environment and is **never logged or sent
+anywhere else**. These downloads happen during `setup`/`refresh` (or lazily on first use); after
+that, lookups are served from a local store with no further network calls. The downloaded data
+lives under your OS cache directory (public reference data only) and can be deleted at any time.
+
+Full policy: **https://mcpwright.com/privacy**
+
 ## Questions & feedback
 
 - **Questions, ideas, or "could it do X?"** → [**Discussions**](https://github.com/mcpwright/census-mcp/discussions)
