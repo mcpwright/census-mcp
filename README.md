@@ -10,9 +10,10 @@ All tools are **read-only**. Data is the U.S. Census Bureau's American Community
 5-year release — **bulk-downloaded once into a local store**, then served offline. A free
 Census API key is required for the one-time download.
 
-> Status: all 8 tools below are live and unit-tested, and the server has been verified
+> Status: published (v0.1.0) — `uvx mcpwright-census` (PyPI) and listed in the official MCP
+> Registry as `io.github.mcpwright/census-mcp`. All 8 tools below are live and unit-tested, verified
 > end-to-end against the live ACS 5-year release (vintage 2024 at the time of writing — the
-> server auto-detects the latest). PyPI + MCP Registry publish is the next step. Part of the
+> server auto-detects the latest). Part of the
 > [**mcpwright**](https://github.com/mcpwright) suite.
 
 ## Tools
@@ -97,7 +98,7 @@ uv run mcp dev src/census_mcp/server.py              # poke the tools in the MCP
 - [x] `get_acs_variable` — raw value for any stored ACS variable (escape hatch)
 - [x] `find_zips` — reverse lookup: place → ZIPs, ranked by land coverage
 - [ ] `get_demographics` age brackets (under-18 / 18-34 / 35-64 / 65+)
-- [ ] Publish to PyPI (`mcpwright-census`) + the official MCP Registry
+- [x] Publish to PyPI (`mcpwright-census`) + the official MCP Registry
 
 ## Questions & feedback
 
