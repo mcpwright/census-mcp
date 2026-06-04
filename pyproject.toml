@@ -1,6 +1,6 @@
 [project]
 name = "mcpwright-census"
-version = "0.1.0"
+version = "0.1.1"
 description = "MCP server for U.S. Census (ACS) data by ZIP code — income, age, housing, education — served from a local store. Needs a free Census API key."
 readme = "README.md"
 license = "MIT"
