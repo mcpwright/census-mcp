@@ -7,16 +7,16 @@ every lookup locally — instant, offline, and rate-limit-proof. Refresh annuall
 when a new ACS vintage drops.
 
 Reads are synchronous (a local SQLite point-lookup is microseconds); only the
-one-time bulk *load* touches the network, via the async ``CensusClient``.
+one-time bulk *load* touches the network, via the async ``CensusClient``. The
+store plumbing (connection, ``meta`` table, load-state) lives in
+``mcpwright_core.BaseStore``; this adds the ACS + ZCTA-place schema and queries.
 """
 
 from __future__ import annotations
 
-import os
-import sqlite3
-import sys
-from pathlib import Path
 from typing import TYPE_CHECKING
+
+from mcpwright_core import BaseStore
 
 from .acs import ACS_FIELDS, ACS_VARIABLES, parse_rows
 from .places import PLACE_REL_VINTAGE, parse_place_rows
@@ -24,33 +24,8 @@ from .places import PLACE_REL_VINTAGE, parse_place_rows
 if TYPE_CHECKING:
     from .census_client import CensusClient
 
-_APP_DIR = "mcpwright-census"
-_DB_NAME = "acs.sqlite3"
-
 # SQLite column type per ACS field kind.
 _SQL_TYPE = {"str": "TEXT", "int": "INTEGER", "float": "REAL"}
-
-
-def _cache_dir() -> Path:
-    """The per-user cache directory for this platform."""
-    # Bind to a local so mypy doesn't prune the other branches as unreachable
-    # (it narrows direct `sys.platform` comparisons to the checking platform).
-    platform = sys.platform
-    if platform == "darwin":
-        return Path.home() / "Library" / "Caches"
-    if platform.startswith("win"):
-        base = os.environ.get("LOCALAPPDATA")
-        return Path(base) if base else Path.home() / "AppData" / "Local"
-    return Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
-
-
-def default_store_path() -> Path:
-    """Where the SQLite store lives (override with ``CENSUS_MCP_STORE``)."""
-    override = os.environ.get("CENSUS_MCP_STORE")
-    if override:
-        return Path(override)
-    return _cache_dir() / _APP_DIR / _DB_NAME
-
 
 # Data columns (everything but the zcta primary key), derived from ACS_FIELDS so
 # the schema can never drift from what we fetch.
@@ -67,43 +42,18 @@ _PLACE_COLUMNS: list[str] = [
 ]
 
 
-class Store:
+class Store(BaseStore):
     """A SQLite-backed local store of ACS data, keyed by ZCTA."""
 
-    def __init__(self, path: Path | None = None) -> None:
-        self.path = path or default_store_path()
-        self._conn: sqlite3.Connection | None = None
-
-    # --- connection lifecycle ----------------------------------------------
-    def connect(self) -> sqlite3.Connection:
-        if self._conn is None:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            conn = sqlite3.connect(self.path)
-            conn.row_factory = sqlite3.Row
-            self._conn = conn
-        return self._conn
-
-    def close(self) -> None:
-        if self._conn is not None:
-            self._conn.close()
-            self._conn = None
+    APP_DIR = "mcpwright-census"
+    DB_NAME = "acs.sqlite3"
+    STORE_ENV_VAR = "CENSUS_MCP_STORE"
+    DATA_TABLE = "zcta"
 
     # --- state -------------------------------------------------------------
-    def is_loaded(self) -> bool:
-        """True once the ACS table exists and holds at least one row."""
-        conn = self.connect()
-        row = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='zcta'"
-        ).fetchone()
-        if row is None:
-            return False
-        count = conn.execute("SELECT COUNT(*) FROM zcta").fetchone()[0]
-        return bool(count)
-
     def vintage(self) -> int | None:
         """The ACS 5-year vintage currently loaded, if any."""
-        v = self._meta("vintage")
-        return int(v) if v is not None else None
+        return self._int_meta("vintage")
 
     def places_loaded(self) -> bool:
         """True once the ZCTA-to-place table exists and holds at least one row."""
@@ -115,17 +65,7 @@ class Store:
 
     def place_vintage(self) -> int | None:
         """The geography vintage of the loaded ZCTA-to-place relationship, if any."""
-        v = self._meta("place_rel_vintage")
-        return int(v) if v is not None else None
-
-    def metadata(self) -> dict[str, str]:
-        conn = self.connect()
-        if not self._table_exists("meta"):
-            return {}
-        return {
-            str(r["key"]): str(r["value"])
-            for r in conn.execute("SELECT key, value FROM meta")
-        }
+        return self._int_meta("place_rel_vintage")
 
     # --- reads -------------------------------------------------------------
     def get(self, zcta: str) -> dict[str, object] | None:
@@ -134,10 +74,7 @@ class Store:
         if not self._table_exists("zcta"):
             return None
         row = conn.execute("SELECT * FROM zcta WHERE zcta = ?", (zcta,)).fetchone()
-        if row is None:
-            return None
-        # sqlite3.Row iterates VALUES, not column names — .keys() is required here.
-        return {key: row[key] for key in row.keys()}  # noqa: SIM118
+        return self._row_dict(row) if row is not None else None
 
     def find_places(
         self, name_norm: str, name_key: str, state: str | None = None
@@ -173,10 +110,7 @@ class Store:
             sql += " AND state = ?"
             params.append(state)
         sql += " ORDER BY coverage IS NULL, coverage DESC"
-        return [
-            {key: row[key] for key in row.keys()}  # noqa: SIM118
-            for row in conn.execute(sql, params)
-        ]
+        return [self._row_dict(row) for row in conn.execute(sql, params)]
 
     # --- writes ------------------------------------------------------------
     def replace_all(self, records: list[dict[str, object]], vintage: int) -> int:
@@ -195,17 +129,7 @@ class Store:
                 f"VALUES ({placeholders})",
                 [tuple(rec.get(c) for c in all_cols) for rec in records],
             )
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)"
-            )
-            conn.execute(
-                "INSERT OR REPLACE INTO meta (key, value) VALUES ('vintage', ?)",
-                (str(vintage),),
-            )
-            conn.execute(
-                "INSERT OR REPLACE INTO meta (key, value) VALUES ('row_count', ?)",
-                (str(len(records)),),
-            )
+            self._write_meta(conn, {"vintage": vintage, "row_count": len(records)})
         return len(records)
 
     def replace_places(self, rows: list[dict[str, object]], vintage: int) -> int:
@@ -227,34 +151,8 @@ class Store:
             # Name lookups drive every find_zips query.
             conn.execute("CREATE INDEX idx_place_norm ON zcta_place (name_norm)")
             conn.execute("CREATE INDEX idx_place_key ON zcta_place (name_key)")
-            conn.execute(
-                "CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)"
-            )
-            conn.execute(
-                "INSERT OR REPLACE INTO meta (key, value) "
-                "VALUES ('place_rel_vintage', ?)",
-                (str(vintage),),
-            )
+            self._write_meta(conn, {"place_rel_vintage": vintage})
         return len(rows)
-
-    # --- internals ---------------------------------------------------------
-    def _table_exists(self, name: str) -> bool:
-        conn = self.connect()
-        return (
-            conn.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
-            ).fetchone()
-            is not None
-        )
-
-    def _meta(self, key: str) -> str | None:
-        conn = self.connect()
-        if not self._table_exists("meta"):
-            return None
-        row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
-        if row is None:
-            return None
-        return str(row["value"])
 
 
 async def load_store(

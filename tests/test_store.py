@@ -1,11 +1,18 @@
 from pathlib import Path
 
-from census_mcp.store import Store, default_store_path
+from census_mcp.store import Store
 
 
 def test_default_store_path_env_override(monkeypatch) -> None:
     monkeypatch.setenv("CENSUS_MCP_STORE", "/tmp/custom/acs.sqlite3")
-    assert default_store_path() == Path("/tmp/custom/acs.sqlite3")
+    assert Store.default_path() == Path("/tmp/custom/acs.sqlite3")
+
+
+def test_default_store_path_uses_census_app_dir(monkeypatch) -> None:
+    monkeypatch.delenv("CENSUS_MCP_STORE", raising=False)
+    p = Store.default_path()
+    assert p.name == "acs.sqlite3"
+    assert p.parent.name == "mcpwright-census"
 
 
 def test_roundtrip_and_state(tmp_path: Path) -> None:
