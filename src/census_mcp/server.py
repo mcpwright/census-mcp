@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from mcp.server.fastmcp import Context, FastMCP
-from mcp.types import ToolAnnotations
+from mcpwright_core import READ_ONLY, app_context, ensure_loaded, run_cli
 
 from .acs import resolve_variable
 from .census_client import CensusClient, MissingKeyError
@@ -102,13 +102,10 @@ async def _lifespan(_server: FastMCP) -> AsyncIterator[AppContext]:
 
 mcp = FastMCP("census", instructions=_INSTRUCTIONS, lifespan=_lifespan)
 
-# Tools read a local store; the one-time load reaches the Census API.
-_READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
-
 
 def _app(ctx: Context) -> AppContext:
     """The shared app resources from the lifespan context."""
-    return cast(AppContext, ctx.request_context.lifespan_context)
+    return app_context(ctx, AppContext)
 
 
 def _normalize_zip(zip_code: str) -> str:
@@ -128,14 +125,12 @@ async def _ensure_loaded(app: AppContext) -> int:
     Lazily bulk-downloads on first use if the store is empty. Serialized so
     concurrent first calls don't each kick off a download.
     """
-    if app.store.is_loaded():
-        return cast(int, app.store.vintage())
-    async with app.load_lock:
-        if not app.store.is_loaded():  # re-check inside the lock
-            if not app.client.has_key:
-                raise MissingKeyError()
-            await load_store(app.store, app.client)
-    return cast(int, app.store.vintage())
+    return await ensure_loaded(
+        app.load_lock,
+        is_loaded=app.store.is_loaded,
+        load=lambda: load_store(app.store, app.client),
+        version=lambda: cast(int, app.store.vintage()),
+    )
 
 
 async def _ensure_places_loaded(app: AppContext) -> int:
@@ -144,12 +139,12 @@ async def _ensure_places_loaded(app: AppContext) -> int:
     Lazily downloads the public 2020 relationship file on first use (no API key
     needed). Serialized so concurrent first calls don't each kick off a download.
     """
-    if app.store.places_loaded():
-        return cast(int, app.store.place_vintage())
-    async with app.load_lock:
-        if not app.store.places_loaded():  # re-check inside the lock
-            await load_places(app.store, app.client)
-    return cast(int, app.store.place_vintage())
+    return await ensure_loaded(
+        app.load_lock,
+        is_loaded=app.store.places_loaded,
+        load=lambda: load_places(app.store, app.client),
+        version=lambda: cast(int, app.store.place_vintage()),
+    )
 
 
 async def _record(app: AppContext, zip_code: str) -> tuple[dict[str, object], int]:
@@ -165,7 +160,7 @@ async def _record(app: AppContext, zip_code: str) -> tuple[dict[str, object], in
     return rec, vintage
 
 
-@mcp.tool(title="Look up a ZIP", annotations=_READ_ONLY)
+@mcp.tool(title="Look up a ZIP", annotations=READ_ONLY)
 async def lookup_zip(zip_code: str, ctx: Context) -> ZipInfo:
     """Confirm a ZIP maps to a Census ZCTA and return its name and population.
 
@@ -177,7 +172,7 @@ async def lookup_zip(zip_code: str, ctx: Context) -> ZipInfo:
     return to_zip_info(rec, vintage)
 
 
-@mcp.tool(title="Get income by ZIP", annotations=_READ_ONLY)
+@mcp.tool(title="Get income by ZIP", annotations=READ_ONLY)
 async def get_income(zip_code: str, ctx: Context) -> Income:
     """Income measures for a ZIP: median household, per-capita, and % $200k+.
 
@@ -189,7 +184,7 @@ async def get_income(zip_code: str, ctx: Context) -> Income:
     return to_income(rec, vintage)
 
 
-@mcp.tool(title="Get demographics by ZIP", annotations=_READ_ONLY)
+@mcp.tool(title="Get demographics by ZIP", annotations=READ_ONLY)
 async def get_demographics(zip_code: str, ctx: Context) -> Demographics:
     """Population and median age for a ZIP.
 
@@ -201,7 +196,7 @@ async def get_demographics(zip_code: str, ctx: Context) -> Demographics:
     return to_demographics(rec, vintage)
 
 
-@mcp.tool(title="Get housing by ZIP", annotations=_READ_ONLY)
+@mcp.tool(title="Get housing by ZIP", annotations=READ_ONLY)
 async def get_housing(zip_code: str, ctx: Context) -> Housing:
     """Housing measures for a ZIP: home value, rent, and owner-occupied share.
 
@@ -213,7 +208,7 @@ async def get_housing(zip_code: str, ctx: Context) -> Housing:
     return to_housing(rec, vintage)
 
 
-@mcp.tool(title="Get education by ZIP", annotations=_READ_ONLY)
+@mcp.tool(title="Get education by ZIP", annotations=READ_ONLY)
 async def get_education(zip_code: str, ctx: Context) -> Education:
     """Educational attainment for a ZIP: % bachelor's+ and % graduate degree.
 
@@ -225,7 +220,7 @@ async def get_education(zip_code: str, ctx: Context) -> Education:
     return to_education(rec, vintage)
 
 
-@mcp.tool(title="Compare ZIPs", annotations=_READ_ONLY)
+@mcp.tool(title="Compare ZIPs", annotations=READ_ONLY)
 async def compare_zips(zips: list[str], metric: str, ctx: Context) -> Comparison:
     """Rank several ZIPs by a single metric, highest value first.
 
@@ -252,7 +247,7 @@ async def compare_zips(zips: list[str], metric: str, ctx: Context) -> Comparison
     return to_comparison(rows, metric, vintage)
 
 
-@mcp.tool(title="Get a raw ACS variable", annotations=_READ_ONLY)
+@mcp.tool(title="Get a raw ACS variable", annotations=READ_ONLY)
 async def get_acs_variable(zip_code: str, variable: str, ctx: Context) -> AcsValue:
     """Raw value of a single ACS variable for a ZIP — an escape hatch.
 
@@ -268,7 +263,7 @@ async def get_acs_variable(zip_code: str, variable: str, ctx: Context) -> AcsVal
     return to_acs_value(rec, code, column, vintage)
 
 
-@mcp.tool(title="Find ZIPs for a place", annotations=_READ_ONLY)
+@mcp.tool(title="Find ZIPs for a place", annotations=READ_ONLY)
 async def find_zips(place: str, ctx: Context, state: str | None = None) -> FindZips:
     """Reverse lookup: the ZIPs (ZCTAs) that fall within a named place.
 
@@ -299,7 +294,7 @@ async def find_zips(place: str, ctx: Context, state: str | None = None) -> FindZ
     return to_find_zips(place, state_abbr, rows, vintage)
 
 
-async def _run_load() -> None:
+async def _run_load(year: int | None = None) -> None:
     """`setup` / `refresh`: bulk-download the ACS dataset into the local store."""
     store = Store()
     client = CensusClient()
@@ -307,7 +302,7 @@ async def _run_load() -> None:
         if not client.has_key:
             raise MissingKeyError()
         print(f"Downloading ACS 5-year data into {store.path} …", file=sys.stderr)
-        count = await load_store(store, client)
+        count = await load_store(store, client, year=year)
         print(f"Done: {count} ZCTAs, ACS {store.vintage()} 5-year.", file=sys.stderr)
         print("Downloading the ZCTA-to-place relationship file …", file=sys.stderr)
         places = await load_places(store, client)
@@ -328,11 +323,4 @@ def main() -> None:
     Claude Code). `mcpwright-census setup` / `refresh` bulk-downloads (or
     re-pulls) the ACS dataset into the local store.
     """
-    if len(sys.argv) > 1 and sys.argv[1] in {"setup", "refresh"}:
-        try:
-            asyncio.run(_run_load())
-        except MissingKeyError as exc:
-            print(str(exc), file=sys.stderr)
-            sys.exit(1)
-        return
-    mcp.run()
+    run_cli(mcp, loader=_run_load, error=MissingKeyError)
