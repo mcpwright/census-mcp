@@ -2,7 +2,7 @@
   "manifest_version": "0.4",
   "name": "census",
   "display_name": "Census (ACS by ZIP)",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "U.S. Census (ACS) data by ZIP: income, demographics, housing, education.",
   "long_description": "An MCP server that puts U.S. Census American Community Survey (ACS) data by ZIP code inside your agent. Look up income, demographics, housing, and educational attainment for any ZIP; compare several ZIPs by one metric; or reverse-lookup the ZIPs within a place. Read-only and built on public Census data — bulk-downloaded once into a local store, then served instantly offline. A free Census API key is required for the one-time download.",
   "author": {
