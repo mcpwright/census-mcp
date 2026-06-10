@@ -71,6 +71,11 @@ Notes:
 - All ACS values are 5-year *estimates*, not exact counts. Each result carries
   its `vintage` (the ACS 5-year end year; for `find_zips`, the 2020 Census
   geography year).
+- A few measures are *top-coded*: median household income caps at $250,001 and
+  median home value at $2,000,001. The wealthiest ZIPs (e.g. Atherton 94027)
+  report exactly those values — treat a result at the cap as "at least that,"
+  not an exact figure. This also affects `compare_zips` (top-coded ZIPs tie at
+  the cap) and `get_acs_variable`.
 - `find_zips` is approximate: ZCTAs don't nest inside places, so a ZIP can span
   several places and a place spans several ZIPs — read `coverage_pct` and prefer
   passing a state to disambiguate same-named places.
@@ -178,7 +183,9 @@ async def get_income(zip_code: str, ctx: Context) -> Income:
 
     `zip_code`: a 5-digit US ZIP. Returns median household income, per-capita
     income, the number of households, and the percent of households earning
-    $200k+ — all ACS 5-year estimates in USD.
+    $200k+ — all ACS 5-year estimates in USD. Note: ACS top-codes median
+    household income at $250,001, so the wealthiest ZIPs (e.g. Atherton 94027)
+    report exactly that — read it as "$250k or more," not an exact figure.
     """
     rec, vintage = await _record(_app(ctx), zip_code)
     return to_income(rec, vintage)
@@ -203,6 +210,9 @@ async def get_housing(zip_code: str, ctx: Context) -> Housing:
     `zip_code`: a 5-digit US ZIP. Returns the median value of owner-occupied
     homes, the median gross rent (monthly), the number of occupied housing
     units, and the percent that are owner-occupied — all ACS 5-year estimates.
+    Note: ACS top-codes median home value at $2,000,001, so the priciest ZIPs
+    (e.g. Atherton 94027) report exactly that — read it as "$2M or more," not an
+    exact value.
     """
     rec, vintage = await _record(_app(ctx), zip_code)
     return to_housing(rec, vintage)
