@@ -17,7 +17,7 @@
   "documentation": "https://mcpwright.com/census",
   "icon": "icon.png",
   "license": "MIT",
-  "privacy_policies": ["https://mcpwright.com/privacy"],
+  "privacy_policies": ["https://mcpwright.com/privacy/"],
   "server": {
     "type": "uv",
     "entry_point": "src/census_mcp/server.py",
