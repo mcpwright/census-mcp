@@ -3,7 +3,7 @@
   "name": "io.github.mcpwright/census-mcp",
   "title": "Census (ACS by ZIP)",
   "description": "U.S. Census (ACS) data by ZIP: income, demographics, housing, education, from a local store.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "url": "https://github.com/mcpwright/census-mcp",
     "source": "github"
@@ -12,7 +12,7 @@
     {
       "registryType": "pypi",
       "identifier": "mcpwright-census",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "transport": {
         "type": "stdio"
       },

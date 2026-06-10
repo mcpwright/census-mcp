@@ -10,7 +10,7 @@ All tools are **read-only**. Data is the U.S. Census Bureau's American Community
 5-year release — **bulk-downloaded once into a local store**, then served offline. A free
 Census API key is required for the one-time download.
 
-> Status: published (v0.1.0) — `uvx mcpwright-census` (PyPI) and listed in the official MCP
+> Status: published (v0.1.2) — `uvx mcpwright-census` (PyPI) and listed in the official MCP
 > Registry as `io.github.mcpwright/census-mcp`. All 8 tools below are live and unit-tested, verified
 > end-to-end against the live ACS 5-year release (vintage 2024 at the time of writing — the
 > server auto-detects the latest). Part of the
