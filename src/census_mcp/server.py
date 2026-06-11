@@ -9,6 +9,7 @@ the one-time download needs the network and a free Census API key.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -326,6 +327,18 @@ async def _run_load(year: int | None = None) -> None:
         store.close()
 
 
+def _quiet_http_logging() -> None:
+    """Keep httpx/httpcore request logs out of terminal/client output.
+
+    httpx logs every request URL at INFO — and the Census API URL carries the
+    user's CENSUS_API_KEY as a query param, so during `setup` the key was
+    being echoed into the terminal (and any captured logs). Capping these
+    loggers means the key cannot leak, whatever the ambient logging config.
+    """
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+
 def main() -> None:
     """Console entry point.
 
@@ -333,4 +346,5 @@ def main() -> None:
     Claude Code). `mcpwright-census setup` / `refresh` bulk-downloads (or
     re-pulls) the ACS dataset into the local store.
     """
+    _quiet_http_logging()
     run_cli(mcp, loader=_run_load, error=MissingKeyError)
